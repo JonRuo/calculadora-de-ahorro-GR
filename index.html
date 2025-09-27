@@ -1,10 +1,316 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <title>Página de Prueba</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora de Inversión y Retiro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom styles for the range slider */
+        input[type=range] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 8px;
+            background: #4a5568; /* gray-700 */
+            border-radius: 5px;
+            outline: none;
+            opacity: 0.7;
+            transition: opacity .2s;
+        }
+        input[type=range]:hover {
+            opacity: 1;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 24px;
+            height: 24px;
+            background: #d97706; /* amber-600 */
+            cursor: pointer;
+            border-radius: 50%;
+            border: 2px solid white;
+        }
+        input[type=range]::-moz-range-thumb {
+            width: 24px;
+            height: 24px;
+            background: #d97706; /* amber-600 */
+            cursor: pointer;
+            border-radius: 50%;
+            border: 2px solid white;
+        }
+    </style>
 </head>
-<body>
-    <h1>¡Hola, Mundo!</h1>
-    <p>Si puedes leer esto, GitHub Pages está funcionando correctamente.</p>
+<body class="bg-gray-900 text-white flex items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-6xl bg-gray-800 rounded-2xl shadow-2xl p-6 md:p-8 grid grid-cols-1 lg:grid-cols-5 gap-8">
+        
+        <!-- Columna de Controles -->
+        <div class="lg:col-span-2 space-y-6">
+            <h1 class="text-2xl md:text-3xl font-bold text-amber-400">Calculadora de Ahorro</h1>
+            
+            <!-- Inversión Inicial -->
+            <div>
+                <label for="initialInvestment" class="block text-sm font-medium text-gray-300 mb-2">Inversión Inicial ($)</label>
+                <input type="number" id="initialInvestment" value="1000" class="w-full bg-gray-700 border border-gray-600 rounded-md p-3 focus:ring-amber-500 focus:border-amber-500 transition">
+            </div>
+
+            <!-- Aportación Periódica -->
+            <div>
+                <label for="contributionAmount" class="block text-sm font-medium text-gray-300 mb-2">Aportación Periódica ($)</label>
+                <input type="number" id="contributionAmount" value="1000" class="w-full bg-gray-700 border border-gray-600 rounded-md p-3 focus:ring-amber-500 focus:border-amber-500 transition">
+            </div>
+
+            <!-- Frecuencia -->
+            <div>
+                <label for="contributionFrequency" class="block text-sm font-medium text-gray-300 mb-2">Frecuencia de Aportación</label>
+                <select id="contributionFrequency" class="w-full bg-gray-700 border border-gray-600 rounded-md p-3 focus:ring-amber-500 focus:border-amber-500 transition">
+                    <option value="semanal">Semanal</option>
+                    <option value="mensual" selected>Mensual</option>
+                    <option value="semestral">Semestral</option>
+                    <option value="anual">Anual</option>
+                </select>
+            </div>
+
+            <!-- Plazo -->
+            <div>
+                <div class="flex justify-between items-center mb-2">
+                    <label for="investmentYears" class="text-sm font-medium text-gray-300">Plazo de Inversión</label>
+                    <span id="yearsValue" class="font-bold text-amber-400 text-lg">10 Años</span>
+                </div>
+                <input type="range" id="investmentYears" min="1" max="15" value="10" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-amber-500">
+            </div>
+
+            <!-- Tasa de Interés -->
+             <div class="bg-gray-700 p-4 rounded-lg text-center">
+                <p class="text-sm text-gray-400">Tasa de Interés Mensual Asignada</p>
+                <p id="interestRateValue" class="text-2xl font-bold text-white">2.5%</p>
+            </div>
+        </div>
+
+        <!-- Columna de Resultados y Gráfico -->
+        <div class="lg:col-span-3 bg-gray-900 p-6 rounded-lg">
+            <div class="text-center mb-6">
+                <h2 class="text-lg font-medium text-gray-400">Saldo Final Proyectado</h2>
+                <p id="futureValue" class="text-4xl md:text-5xl font-extrabold text-amber-400 tracking-tight">$0.00</p>
+            </div>
+            <div class="flex justify-around text-center mb-6">
+                <div>
+                    <h3 class="text-sm font-medium text-gray-400">Total Aportado</h3>
+                    <p id="totalContributionsValue" class="text-xl font-bold text-gray-300">$0.00</p>
+                </div>
+                <div>
+                    <h3 class="text-sm font-medium text-gray-400">Ganancia Total</h3>
+                    <p id="totalEarningsValue" class="text-xl font-bold text-green-400">$0.00</p>
+                </div>
+            </div>
+            <div class="relative h-64 md:h-80">
+                <canvas id="savingsChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- ELEMENTOS DEL DOM ---
+        const initialInvestmentEl = document.getElementById('initialInvestment');
+        const contributionAmountEl = document.getElementById('contributionAmount');
+        const contributionFrequencyEl = document.getElementById('contributionFrequency');
+        const investmentYearsEl = document.getElementById('investmentYears');
+        const yearsValueEl = document.getElementById('yearsValue');
+        const interestRateValueEl = document.getElementById('interestRateValue');
+        const futureValueEl = document.getElementById('futureValue');
+        const totalContributionsValueEl = document.getElementById('totalContributionsValue');
+        const totalEarningsValueEl = document.getElementById('totalEarningsValue');
+        const chartCanvas = document.getElementById('savingsChart');
+
+        // --- MAPA DE TASAS DE INTERÉS ---
+        // (Año: Tasa mensual en porcentaje)
+        const interestRates = {
+            1: 1.6, 2: 1.7, 3: 1.8, 4: 1.9, 5: 2.0, 6: 2.1, 7: 2.2,
+            8: 2.3, 9: 2.4, 10: 2.5, 11: 2.6, 12: 2.7, 13: 2.8, 14: 2.9, 15: 3.0
+        };
+
+        let savingsChart; // Variable para mantener la instancia del gráfico
+
+        // --- FUNCIÓN PRINCIPAL DE CÁLCULO ---
+        function calculateProjection() {
+            // 1. Obtener los valores de los inputs
+            const initialInvestment = parseFloat(initialInvestmentEl.value) || 0;
+            const contributionAmount = parseFloat(contributionAmountEl.value) || 0;
+            const frequency = contributionFrequencyEl.value;
+            const years = parseInt(investmentYearsEl.value);
+
+            // 2. Obtener la tasa de interés mensual
+            const monthlyInterestRate = interestRates[years] / 100;
+
+            // 3. Simulación mes a mes
+            let balance = initialInvestment;
+            let totalContributions = initialInvestment; // Incluye la inversión inicial
+            const totalMonths = years * 12;
+
+            const chartLabels = [];
+            const chartTotalData = [];
+            const chartContributionData = [];
+
+            for (let month = 1; month <= totalMonths; month++) {
+                // Añadir aportación según la frecuencia
+                switch(frequency) {
+                    case 'semanal':
+                        // Se promedia 4.33 semanas por mes
+                        balance += contributionAmount * (52 / 12);
+                        totalContributions += contributionAmount * (52/12);
+                        break;
+                    case 'mensual':
+                        balance += contributionAmount;
+                        totalContributions += contributionAmount;
+                        break;
+                    case 'semestral':
+                        if (month % 6 === 0) {
+                            balance += contributionAmount;
+                            totalContributions += contributionAmount;
+                        }
+                        break;
+                    case 'anual':
+                         if (month % 12 === 0) {
+                            balance += contributionAmount;
+                            totalContributions += contributionAmount;
+                        }
+                        break;
+                }
+                
+                // Aplicar interés compuesto mensual
+                balance *= (1 + monthlyInterestRate);
+
+                // Guardar datos para el gráfico al final de cada año
+                if (month % 12 === 0) {
+                    chartLabels.push(`Año ${month / 12}`);
+                    chartTotalData.push(balance.toFixed(2));
+                    chartContributionData.push(totalContributions.toFixed(2));
+                }
+            }
+             
+            // Si el plazo no es un número entero de años, se añade el último punto
+            if (totalMonths % 12 !== 0) {
+                chartLabels.push(`Año ${years}`);
+                chartTotalData.push(balance.toFixed(2));
+                chartContributionData.push(totalContributions.toFixed(2));
+            }
+
+            // 4. Actualizar la UI
+            const totalEarnings = balance - totalContributions;
+            updateUI(years, balance, totalContributions, totalEarnings, chartLabels, chartTotalData, chartContributionData);
+        }
+
+        // --- FUNCIÓN PARA ACTUALIZAR LA INTERFAZ ---
+        function updateUI(years, finalBalance, totalContributions, totalEarnings, chartLabels, chartTotalData, chartContributionData) {
+            // Actualizar textos
+            yearsValueEl.textContent = `${years} Año${years > 1 ? 's' : ''}`;
+            interestRateValueEl.textContent = `${interestRates[years]}%`;
+            futureValueEl.textContent = finalBalance.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
+            totalContributionsValueEl.textContent = totalContributions.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
+            totalEarningsValueEl.textContent = totalEarnings.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
+            
+            // Actualizar el gráfico
+            updateChart(chartLabels, chartTotalData, chartContributionData);
+        }
+
+        // --- FUNCIÓN PARA ACTUALIZAR EL GRÁFICO ---
+        function updateChart(labels, totalData, contributionData) {
+            if (savingsChart) {
+                savingsChart.destroy();
+            }
+
+            // Calcular el rendimiento (ganancias)
+            const returnsData = totalData.map((total, index) => total - contributionData[index]);
+
+            const data = {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Aportaciones',
+                        data: contributionData,
+                        backgroundColor: '#9CA3AF', // gray-400
+                        borderColor: '#6B7280',    // gray-500
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Rendimiento',
+                        data: returnsData,
+                        backgroundColor: '#fcd34d', // amber-300
+                        borderColor: '#fbbf24',    // amber-400
+                        borderWidth: 1
+                    }
+                ]
+            };
+
+            const config = {
+                type: 'bar',
+                data: data,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                             labels: {
+                                color: '#A0AEC0' // gray-400
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed.y !== null) {
+                                        label += new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(context.parsed.y);
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            stacked: true,
+                             ticks: { color: '#A0AEC0' }, // gray-400
+                             grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                        },
+                        y: {
+                            stacked: true,
+                            beginAtZero: true,
+                            ticks: { 
+                                color: '#A0AEC0', // gray-400
+                                callback: function(value) {
+                                    return '$' + (value / 1000) + 'k';
+                                }
+                            },
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                        }
+                    }
+                }
+            };
+            
+            savingsChart = new Chart(chartCanvas, config);
+        }
+
+
+        // --- EVENT LISTENERS ---
+        [initialInvestmentEl, contributionAmountEl, contributionFrequencyEl, investmentYearsEl].forEach(el => {
+            el.addEventListener('input', calculateProjection);
+        });
+
+        // --- INICIALIZACIÓN ---
+        document.addEventListener('DOMContentLoaded', calculateProjection);
+    </script>
 </body>
 </html>
+
